@@ -5,6 +5,7 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ImageResizer
@@ -15,7 +16,7 @@ namespace ImageResizer
         /// 清空目的目錄下的所有檔案與目錄
         /// </summary>
         /// <param name="destPath">目錄路徑</param>
-        public void Clean(string destPath)
+        public static void Clean(string destPath)
         {
             if (!Directory.Exists(destPath))
             {
@@ -68,6 +69,33 @@ namespace ImageResizer
             }
         }
 
+        internal Task ResizeImagesAsync(string sourcePath, string destPath, double scale, CancellationToken token)
+        {
+            var allFiles = FindImages(sourcePath);
+            List<Task> tasks = allFiles.Select(filePath => Task.Run(() =>
+                {
+                    Image imgPhoto = Image.FromFile(filePath);
+
+                    string imgName = Path.GetFileNameWithoutExtension(filePath);
+
+                    int sourceWidth = imgPhoto.Width;
+                    int sourceHeight = imgPhoto.Height;
+
+                    int destionatonWidth = (int)(sourceWidth * scale);
+                    int destionatonHeight = (int)(sourceHeight * scale);
+
+                    //Bitmap processedImage = await ProcessBitmapAsync(imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight);
+                    Bitmap processedImage = ProcessBitmap((Bitmap)imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight);
+                    string destFile = Path.Combine(destPath, imgName + ".jpg");
+
+                    processedImage.Save(destFile, ImageFormat.Jpeg);
+
+                },token))
+                .ToList();
+
+            return Task.WhenAll(tasks);
+        }
+
         /// <summary>
         /// 進行圖片的縮放作業
         /// </summary>
@@ -76,29 +104,7 @@ namespace ImageResizer
         /// <param name="scale">縮放比例</param>
         public Task ResizeImagesAsync(string sourcePath, string destPath, double scale)
         {
-            var allFiles = FindImages(sourcePath);
-            List<Task> tasks = allFiles.Select(filePath => Task.Run(() =>
-              {
-
-                  Image imgPhoto = Image.FromFile(filePath);
-
-                  string imgName = Path.GetFileNameWithoutExtension(filePath);
-
-                  int sourceWidth = imgPhoto.Width;
-                  int sourceHeight = imgPhoto.Height;
-
-                  int destionatonWidth = (int)(sourceWidth * scale);
-                  int destionatonHeight = (int)(sourceHeight * scale);
-
-                   //Bitmap processedImage = await ProcessBitmapAsync(imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight);
-                   Bitmap processedImage = ProcessBitmap((Bitmap)imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight);
-                  string destFile = Path.Combine(destPath, imgName + ".jpg");
-
-                  processedImage.Save(destFile, ImageFormat.Jpeg);
-              }))
-                .ToList();
-
-            return Task.WhenAll(tasks);
+            return ResizeImagesAsync(sourcePath, destPath, scale, CancellationToken.None);
         }
 
         /// <summary>
