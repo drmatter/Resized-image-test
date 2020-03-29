@@ -72,7 +72,7 @@ namespace ImageResizer
         internal Task ResizeImagesAsync(string sourcePath, string destPath, double scale, CancellationToken token)
         {
             var allFiles = FindImages(sourcePath);
-            List<Task> tasks = allFiles.Select(filePath => Task.Run(() =>
+            List<Task> tasks = allFiles.Select(filePath => Task.Run(async () =>
                 {
                     Image imgPhoto = Image.FromFile(filePath);
 
@@ -84,16 +84,38 @@ namespace ImageResizer
                     int destionatonWidth = (int)(sourceWidth * scale);
                     int destionatonHeight = (int)(sourceHeight * scale);
 
-                    //Bitmap processedImage = await ProcessBitmapAsync(imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight);
-                    Bitmap processedImage = ProcessBitmap((Bitmap)imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight);
+                    if (token.IsCancellationRequested) return;
+                    Bitmap processedImage = await ProcessBitmapAsync(imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight, token);
+                    //Bitmap processedImage = ProcessBitmap((Bitmap)imgPhoto, sourceWidth, sourceHeight, destionatonWidth, destionatonHeight);
                     string destFile = Path.Combine(destPath, imgName + ".jpg");
-
+                    if (token.IsCancellationRequested) return;
                     processedImage.Save(destFile, ImageFormat.Jpeg);
 
-                },token))
+                }, token))
                 .ToList();
 
             return Task.WhenAll(tasks);
+        }
+
+        private static async Task<Bitmap> ProcessBitmapAsync(Image img, int srcWidth, int srcHeight, int newWidth, int newHeight, CancellationToken token)
+        {
+            Bitmap bmp = new Bitmap(newWidth, newHeight);
+            if (token.IsCancellationRequested) return bmp;
+           
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.InterpolationMode = InterpolationMode.High;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.Clear(Color.Transparent);
+                await Task.Run(() =>
+                {
+                    g.DrawImage(img,
+                        new Rectangle(0, 0, newWidth, newHeight),
+                        new Rectangle(0, 0, srcWidth, srcHeight),
+                        GraphicsUnit.Pixel);
+                });
+            }
+            return bmp;
         }
 
         /// <summary>
@@ -153,23 +175,9 @@ namespace ImageResizer
         /// <param name="newWidth">新圖片的寬度</param>
         /// <param name="newHeight">新圖片的高度</param>
         /// <returns></returns>
-        private static async Task<Bitmap> ProcessBitmapAsync(Image img, int srcWidth, int srcHeight, int newWidth, int newHeight)
+        private static Task<Bitmap> ProcessBitmapAsync(Image img, int srcWidth, int srcHeight, int newWidth, int newHeight)
         {
-            Bitmap bmp = new Bitmap(newWidth, newHeight);
-            using (var g = Graphics.FromImage(bmp))
-            {
-                g.InterpolationMode = InterpolationMode.High;
-                g.SmoothingMode = SmoothingMode.HighQuality;
-                g.Clear(Color.Transparent);
-                await Task.Run(() =>
-                {
-                    g.DrawImage(img,
-                        new Rectangle(0, 0, newWidth, newHeight),
-                        new Rectangle(0, 0, srcWidth, srcHeight),
-                        GraphicsUnit.Pixel);
-                });
-            }
-            return bmp;
+            return ProcessBitmapAsync(img, srcWidth, srcHeight, newWidth, newHeight, CancellationToken.None);
         }
     }
 }

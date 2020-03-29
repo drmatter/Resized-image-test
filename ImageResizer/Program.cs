@@ -44,7 +44,6 @@ namespace ImageResizer
                         //var synchronousMethodTime = sw.ElapsedMilliseconds;
                         //sw.Reset();
 
-
                         //ImageProcess.Clean(destinationPath);
 
                         sw.Start();
@@ -58,6 +57,7 @@ namespace ImageResizer
                     }
                 }
                 catch (OperationCanceledException)
+                
                 {
                     ImageProcess.Clean(destinationPath);
 
