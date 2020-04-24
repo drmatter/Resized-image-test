@@ -29,14 +29,14 @@ steps:
   inputs:
     command: build
     configuration: $(configuration)
-    projects: $(projectPath)
+    projects: '**/*.csproj'
 
 - task: DotNetCoreCLI@2
   displayName: 'Pack the package'
   inputs:
    command: 'pack'
    configuration: $(configuration)
-   packagesToPack: $(projectPath)
+   packagesToPack: '**/*.csproj'
    nobuild: true
    versioningScheme: 'byPrereleaseNumber'
    majorVersion: '1'
