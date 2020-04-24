@@ -11,6 +11,8 @@ pool:
 
 variables:
   solution: '**/*.sln'
+  configuration: 'Release'
+  projectPath::  '**/*.csproj'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
 
@@ -23,8 +25,22 @@ steps:
    version: '2.x'
 
 - task: DotNetCoreCLI@2
+  displayName: 'Build the project'
   inputs:
     command: build
-    projects: '**/*.csproj'
+    configuration: $(configuration)
+    projects: $(projectPath)
+
+- task: DotNetCoreCLI@2
+  displayName: 'Pack the package'
+  inputs:
+   command: 'pack'
+   configuration: $(configuration)
+   packagesToPack: $(projectPath)
+   nobuild: true
+   versioningScheme: 'byPrereleaseNumber'
+   majorVersion: '1'
+   minorVersion: '0'
+   patchVersion: '0'
 
 
